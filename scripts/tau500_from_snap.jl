@@ -54,12 +54,6 @@ function τ500_from_snap(
         slicez::AbstractVector{<:Integer}=Int[],
         permute::Bool=false
 )
-
-    x = xp.mesh.x[slicex] * 1f6 # to SI units
-    y = -xp.mesh.y[slicey] * 1f6 # rotate and to SI units
-    z = -xp.mesh.z[slicez] * 1f6 # rotate and to SI units
-
-    nx=length(x); ny=length(y); nz=length(z)
     
     # grams per H atom
     grph = 2.38049f-24
@@ -68,6 +62,17 @@ function τ500_from_snap(
     electron_density = get_electron_density(xp,snap,units="si",slicex=slicex,slicey=slicey,slicez=slicez,verbose=false)
     rho = get_var(xp,snap,"r",units="si",slicex=slicex,slicey=slicey,slicez=slicez)
 
+    # Fix indices
+    isempty(slicex) && ( slicex = 1:xp.mesh.mx )
+    isempty(slicey) && ( slicey = 1:xp.mesh.my )
+    isempty(slicez) && ( slicez = 1:xp.mesh.mz )
+
+    x = xp.mesh.x[slicex] * 1f6 # to SI units
+    y = -xp.mesh.y[slicey] * 1f6 # rotate and to SI units
+    z = -xp.mesh.z[slicez] * 1f6 # rotate and to SI units
+
+    nx=length(x); ny=length(y); nz=length(z)
+    
     # Permute dimensions
     temperature = permutedims(temperature, (3,2,1))    
     electron_density = permutedims(electron_density, (3,2,1))
@@ -97,7 +102,7 @@ function τ500_from_snap(
         proton_density,
     )
 
-    τ = tau_from_atmos(atmos, wave=500)
+    τ = τ_from_atmos(atmos, wave=500)
     if permute
         τ = permute_dims(τ, (3,2,1))
     end
