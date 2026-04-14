@@ -165,21 +165,23 @@ function calc_τ_cont!(
     σ_itp::ExtinctionItpNLTE{<:Real},
 ) where T <: AbstractFloat
     τ[1] = zero(T)
-    α = α_cont(
+    α_thermal, α_scattering = α_cont(
         σ_itp,
         atm.temperature[1],
         atm.electron_density[1],
         atm.hydrogen1_density[1],
         atm.proton_density[1]
     )
+    α = α_thermal + α_scattering
     for i in 2:atm.nz
-        α_next = α_cont(
+        α_thermal_next, α_scattering_next = α_cont(
             σ_itp,
             atm.temperature[i],
             atm.electron_density[i],
             atm.hydrogen1_density[i],
             atm.proton_density[i]
         )
+        α_next = α_thermal_next + α_scattering_next
         τ[i] = τ[i-1] + abs(atm.z[i] - atm.z[i-1]) * (α + α_next) / 2
         α = α_next
     end
