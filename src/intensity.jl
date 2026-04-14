@@ -12,14 +12,18 @@ function calc_line_prep!(
     σ_itp::ExtinctionItpNLTE{<:Real},
 ) where T <: AbstractFloat
     for i in 1:atm.nz
-        buf.α_c[i] = α_cont(
+        αc_thermal, αc_scattering = α_cont(
             σ_itp,
             atm.temperature[i],
             atm.electron_density[i],
             atm.hydrogen1_density[i],
             atm.proton_density[i]
         )
-        buf.j_c[i] = buf.α_c[i] * blackbody_λ(line.λ0, atm.temperature[i])
+
+        buf.α_c[i] = αc_thermal + αc_scattering
+
+        buf.j_c[i] = αc_thermal * blackbody_λ(line.λ0, atm.temperature[i])
+
         buf.γ[i] = calc_broadening(
             line.γ,
             atm.temperature[i],

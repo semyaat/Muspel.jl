@@ -85,13 +85,14 @@ function α_cont(
     temperature::T,
     electron_density::T,
     hydrogen_density::T,
-)::T where T <: AbstractFloat
+)::Tuple{T,T} where T <: AbstractFloat
     log_temp = log10(temperature)
     log_ne = log10(electron_density)
-    α = itp.σ_H(log_temp, log_ne) * hydrogen_density
-    α += (itp.σ_H2(log_temp, log_ne) * hydrogen_density) * hydrogen_density
-    α += σ_THOMSON * electron_density
-    return α
+    α_thermal = itp.σ_H(log_temp, log_ne) * hydrogen_density
+    α_thermal += (itp.σ_H2(log_temp, log_ne) * hydrogen_density) * hydrogen_density
+
+    α_scattering = σ_THOMSON * electron_density
+    return α_thermal, α_scattering
 end
 
 
@@ -130,17 +131,20 @@ function α_cont(
     electron_density::T,
     h_neutral_density::T,
     proton_density::T,
-)::T where T <: AbstractFloat
+)::Tuple{T,T} where T <: AbstractFloat
     log_temp = log10(temperature)
-    log_ne = log10(electron_density)
+    log_ne   = log10(electron_density)
     hydrogen_density = h_neutral_density + proton_density
-    α = itp.σ_atoms(log_temp, log_ne) * hydrogen_density
-    α += (itp.σ_hminus(log_temp) * electron_density) * h_neutral_density
-    α += (itp.σ_h_ff(log_temp) * electron_density) * proton_density
-    α += (itp.σ_h2plus(log_temp) * proton_density) * h_neutral_density
-    α += ustrip(σ_rayleigh_h(itp.λ * u"nm")) * h_neutral_density
-    α += σ_THOMSON * electron_density
-    return α
+
+    α_thermal  = itp.σ_atoms(log_temp, log_ne) * hydrogen_density
+    α_thermal += (itp.σ_hminus(log_temp) * electron_density) * h_neutral_density
+    α_thermal += (itp.σ_h_ff(log_temp) * electron_density) * proton_density
+    α_thermal += (itp.σ_h2plus(log_temp) * proton_density) * h_neutral_density
+
+    α_scattering  = ustrip(σ_rayleigh_h(itp.λ * u"nm")) * h_neutral_density
+    α_scattering += σ_THOMSON * electron_density
+    
+    return α_thermal, α_scattering
 end
 
 
@@ -167,28 +171,30 @@ bound-free processes from background atoms.
 - `proton_density`: Proton number density in m^-3.
 
 # Returns
-- `α`: Continuous extinction (Float) in m^-1.
-"""
+- `α_thermal`: Continuous thermal extinction (Float) in m^-1.
+- `α_scattering`: Continuous scattering extinction (Float) in m^-1."""
 function α_cont_no_itp(
     λ::T,
     temperature::T,
     electron_density::T,
     h_neutral_density::T,
-    proton_density::T
-) where T <: AbstractFloat
+    proton_density::T,
+)::Tuple{T,T} where T <: AbstractFloat
     λ *= u"nm"
     temperature *= u"K"
     electron_density *= u"m^-3"
     h_neutral_density *= u"m^-3"
     proton_density *= u"m^-3"
-    α = α_hminus_ff(λ, temperature, h_neutral_density,  electron_density)
-    α += α_hminus_bf(λ, temperature, h_neutral_density, electron_density)
-    α += α_hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
-    α += α_h2plus_ff(λ, temperature, h_neutral_density, proton_density)
-    α += α_h2plus_bf(λ, temperature, h_neutral_density, proton_density)
-    α += α_thomson(electron_density)
-    α += α_rayleigh_h(λ, h_neutral_density)
-    return ustrip(α |> u"m^-1")
+
+    α_thermal  = α_hminus_ff(λ, temperature, h_neutral_density,  electron_density)
+    α_thermal += α_hminus_bf(λ, temperature, h_neutral_density, electron_density)
+    α_thermal += α_hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
+    α_thermal += α_h2plus_ff(λ, temperature, h_neutral_density, proton_density)
+    α_thermal += α_h2plus_bf(λ, temperature, h_neutral_density, proton_density)
+
+    α_scattering  = α_thomson(electron_density)
+    α_scattering += α_rayleigh_h(λ, h_neutral_density)
+    return ustrip(α_thermal |> u"m^-1"), ustrip(α_scattering |> u"m^-1")
 end
 
 #=----------------------------------------------------------------------------
