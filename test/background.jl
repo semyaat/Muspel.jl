@@ -42,8 +42,8 @@ import Muspel: create_σ_itp_LTE, create_σ_itp_NLTE, get_atoms_bf_interpolant, 
         itp_test = get_σ_itp(atmos_test, 500., atoms_list; npts=101)
         @test isa(itp_test, ExtinctionItpNLTE{Float64})
         @test isapprox(
-            α_cont(itp_nlte2, 5000., 1e20, 1e20, 1e20),
-            α_cont(itp_test, 5000., 1e20, 1e20, 1e20),
+            stack(α_cont(itp_nlte2, 5000., 1e20, 1e20, 1e20)),
+            stack(α_cont(itp_test, 5000., 1e20, 1e20, 1e20)),
             rtol=1e-3
         )
         @test_throws SystemError get_σ_itp(atmos_test, 500., ["nofile.yaml"])
@@ -56,36 +56,44 @@ import Muspel: create_σ_itp_LTE, create_σ_itp_NLTE, get_atoms_bf_interpolant, 
             nHII = ni .* ion_frac
             # Check if LTE and NLTE give same result, assuming Saha for hydrogen
             @test isapprox(
-                α_cont.(Ref(itp_lte), temp, ni, ni),
-                α_cont.(Ref(itp_nlte), temp, ni, nHI, nHII),
+                stack(α_cont.(Ref(itp_lte), temp, ni, ni)),
+                stack(α_cont.(Ref(itp_nlte), temp, ni, nHI, nHII)),
                 rtol=1e-5,
             )
             # Check if interpolant with no atoms gives same result as α_cont_no_itp
             @test isapprox(
-                α_cont_no_itp.(λ[1], temp, ni, nHI, nHII),
-                α_cont.(Ref(itp_nlte_empty), temp, ni, nHI, nHII),
+                stack(α_cont_no_itp.(λ[1], temp, ni, nHI, nHII)),
+                stack(α_cont.(Ref(itp_nlte_empty), temp, ni, nHI, nHII)),
                 rtol=1e-5,
             )
         end
         # Some checks against implementation
-        prev = [3.166260014050373e-9   1.2390038437211058e-10  2.8355199724497864e-10
-                2.3365757985473882e-8  4.1969276633548743e-10  1.4792957612236907e-9
-                3.19501480342208e-8    5.232736686830469e-10   2.039376943876063e-9
-                1.1834781970475661e-9  2.1924407940343387e-10  5.4690898709933755e-9
-                2.0918382712344928e-10 2.886350125152959e-10   9.258069388938863e-9]
+        prev = [3.099735426728638e-9 5.737579705215677e-11 2.1702740948438375e-10; 
+                2.329923339815215e-8 3.531681790200384e-10 1.4127711713968792e-9; 
+                3.188362344689906e-8 4.5674908136823566e-10 1.9728523541442412e-9; 
+                1.1169536097258309e-9 1.5271949210413109e-10 5.402565280664961e-9; 
+                1.426592398017141e-10 2.2211042523024984e-10 9.191544796655046e-9;;; 
+                6.652458732173518e-11 6.652458732173518e-11 6.652458732173518e-11; 
+                6.652458732173518e-11 6.652458732173518e-11 6.652458732173518e-11; 
+                6.652458732173518e-11 6.652458732173518e-11 6.652458732173518e-11; 
+                6.652458732173518e-11 6.652458732173518e-11 6.652458732173518e-11; 
+                6.652458732173518e-11 6.652458732173518e-11 6.652458732173518e-11]
         for (i, λi) in enumerate(λ)
             itp = create_σ_itp_LTE(λi, log_temp, log_ne, H, atoms, σ_atom_itp)
-            @test α_cont.(Ref(itp), temp, 1e18, 1e20) ≈ prev[i, :]
+            @test permutedims(stack(α_cont.(Ref(itp), temp, 1e18, 1e20))) ≈ prev[i, :, :]
         end
     end
 
     @testset "α_cont_no_itp" begin
         # Against previous implementation:
-        prev = [1.052784352703514, 3.5727512640936836, 4.628599312906391,
-               1.9725067321692635, 2.5417412522755836] * 1e-8
-        @test all(α_cont_no_itp.(λ, 6e3, 1e20, 1e20, 4e15) .≈ prev)
+        prev = [0.3875384794861622     0.6652458732173518
+                2.906477474892972      0.6662737892007118
+                3.9632382586598986     0.6653610542464922
+                1.307251908032521      0.66525482413674265
+                1.876491725439709      0.6652495268358745] * 1e-8
+        @test permutedims(stack(α_cont_no_itp.(λ, 6e3, 1e20, 1e20, 4e15))) ≈ prev
         # Consistency check, Hmin maximum extinction
-        @test argmax(α_cont_no_itp.(λ, 6e3, 1e20, 1.0e20, 4e15)) == 3
+        @test argmax(α_cont_no_itp.(λ, 6e3, 1e20, 1.0e20, 4e15)) == 3 # Only checks thermal scatt
     end
 
     @testset "σH" begin
