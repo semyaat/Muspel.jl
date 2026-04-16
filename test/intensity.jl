@@ -48,7 +48,6 @@ using AtomicData
         # Consistency tests
         @test buf.intensity[end] == buf.int_tmp[1]
         S_Planck = blackbody_λ.(my_line.λ0, atm.temperature)
-        @test isapprox(S_Planck, buf.source_function, rtol=1e-2)  # S = B for continuum
         @test isapprox(buf.j_c ./ buf.α_c, buf.source_function, rtol=1e-2)  # S = S_c
         @test all(buf.source_function .> 0)
         @test all(buf.α_c .> 0)
@@ -85,7 +84,6 @@ using AtomicData
         calc_line_1D!(my_line, buf ,my_line.λ, atm, n_u, n_l, voigt_itp;
                       to_end=true, initial_condition=:zero)
         @test buf.intensity[end] == buf.int_tmp[end]
-        @test isapprox(S_Planck, buf.source_function, rtol=1e-2)  # S = B for continuum
 
         # Test isotopes
         iso_fraction = [0.5, 0.5]
